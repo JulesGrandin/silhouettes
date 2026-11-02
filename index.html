@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Silhouettes</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css?v=10">
+</head>
+<body>
+  <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
+    <div class="load-card">
+      <p class="load-text" id="load-text">Ça carto-charge…</p>
+      <div class="load-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="load-bar-fill" class="load-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="intro-modal" class="intro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="intro-title">
+    <canvas id="globe" aria-hidden="true"></canvas>
+    <div class="intro-card">
+      <h1 id="intro-title">Silhouettes</h1>
+      <p class="lead">La forme, rien que la forme. Pas de voisins, pas de frontières. À vous de mettre un nom dessus.</p>
+
+      <p class="field-label">Territoire</p>
+      <div class="choice-grid" role="group" aria-label="Territoire">
+        <button type="button" data-territory="world" aria-pressed="true">Pays du monde</button>
+        <button type="button" data-territory="france" aria-pressed="false">Départements</button>
+        <button type="button" data-territory="us" aria-pressed="false">États-Unis</button>
+      </div>
+
+      <p class="field-label">Partie</p>
+      <div class="mode-switch" role="group" aria-label="Longueur de la partie">
+        <button type="button" data-length="5" aria-pressed="true">5 manches</button>
+        <button type="button" data-length="10" aria-pressed="false">10 manches</button>
+      </div>
+
+      <p class="field-label">Difficulté</p>
+      <div class="mode-switch mode-switch-3" role="group" aria-label="Difficulté">
+        <button type="button" data-difficulty="easy" aria-pressed="true">Facile</button>
+        <button type="button" data-difficulty="hard" aria-pressed="false">Difficile</button>
+        <button type="button" data-difficulty="hyper" aria-pressed="false">Hyper difficile</button>
+      </div>
+      <p class="mode-note" id="rules-note"></p>
+
+      <button type="button" id="btn-start" class="btn-primary">Je me lance</button>
+    </div>
+  </div>
+
+  <div id="timer-block" class="timer-block" hidden aria-label="Temps restant">
+    <div class="timer-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+      <div id="timer-fill" class="timer-fill">
+        <span class="timer-value" id="timer-value">15 s</span>
+      </div>
+    </div>
+  </div>
+
+  <header id="chrome" hidden>
+    <p class="round-meta" id="round-kicker">Manche 1 / 5</p>
+    <p class="round-prompt" id="score-line">Score 0</p>
+  </header>
+
+  <aside id="history-wrap" class="score-history-wrap" hidden aria-label="Votre partie">
+    <p class="score-history-heading">Votre partie</p>
+    <ul id="history" class="score-history"></ul>
+  </aside>
+
+  <canvas id="verdict" aria-hidden="true"></canvas>
+
+  <div id="stage" hidden>
+    <svg id="map" preserveAspectRatio="none" aria-hidden="true">
+      <path id="land-fill" fill-rule="nonzero"></path>
+      <path id="neighbor-coast" fill="none"></path>
+      <path id="frontier-line" fill="none"></path>
+      <path id="frontier-disputed" fill="none"></path>
+      <path id="map-target" fill-rule="evenodd"></path>
+    </svg>
+    <svg id="shape" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Silhouette à identifier">
+      <path id="shape-path" fill-rule="evenodd"></path>
+    </svg>
+  </div>
+
+  <div id="dock" hidden>
+    <div class="dock-card">
+      <div id="ask">
+        <p class="round-prompt" id="ask-label">Quel pays est-ce ?</p>
+        <p class="mode-note" id="ask-hint" hidden>Cette forme n’est pas forcément orientée au nord.</p>
+        <div id="choices" class="choices" role="group" aria-label="Propositions"></div>
+        <form id="guess-form" hidden>
+          <div class="guess-wrap">
+            <label class="sr-only" for="guess">Votre réponse</label>
+            <input id="guess" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Tapez un nom">
+            <ul id="suggest" role="listbox" hidden></ul>
+          </div>
+          <button type="submit" class="btn-primary btn-block">Valider</button>
+        </form>
+        <button type="button" id="btn-skip" class="btn-secondary btn-block">Passer cette manche</button>
+      </div>
+      <div id="feedback" hidden>
+        <p class="round-prompt" id="feedback-kicker">Bonne réponse</p>
+        <p class="reveal-name" id="feedback-name">—</p>
+        <p class="result-detail" id="feedback-detail"></p>
+        <button type="button" id="btn-next" class="btn-primary btn-block">Manche suivante</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="finish-modal" class="intro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="finish-title">
+    <div class="intro-card finish-card">
+      <h1 id="finish-title">Partie terminée</h1>
+      <p class="final-score-kicker">Votre note</p>
+      <p class="final-score" id="final-score">—</p>
+      <ul class="finish-recap" id="finish-recap" aria-label="Bilan des manches"></ul>
+      <button type="button" id="btn-replay" class="btn-primary">Rejouer</button>
+    </div>
+  </div>
+
+  <script src="app.js?v=25"></script>
+</body>
+</html>
