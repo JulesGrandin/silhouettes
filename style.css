@@ -577,6 +577,45 @@ input:focus-visible {
   color: white;
 }
 
+.ask-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ask-actions .btn-secondary,
+.ask-actions .btn-primary {
+  width: 100%;
+  margin-top: 0;
+}
+
+#ask.is-typed #ask-label { display: none; }
+
+#ask.is-typed .guess-wrap { margin-top: 8px; }
+
+#ask.is-typed .ask-actions {
+  grid-template-columns: 20% minmax(0, 1fr);
+  margin-top: 8px;
+}
+
+#ask.is-typed #btn-skip {
+  padding: 10px 4px;
+  font-size: 13px;
+  line-height: 1.15;
+  text-align: center;
+}
+
+#ask:not(.is-typed) #btn-validate { display: none; }
+
+#ask:not(.is-typed) #btn-skip {
+  background: #e6e2db;
+  border-color: transparent;
+  color: var(--muted);
+  text-align: center;
+}
+
+#ask:not(.is-typed) #btn-skip:hover { background: #dbd6ce; }
+
 .guess-wrap { position: relative; margin-top: 12px; }
 
 #guess {

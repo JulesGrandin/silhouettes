@@ -94,6 +94,7 @@ const ui = {
   askHint: $("ask-hint"),
   choices: $("choices"),
   form: $("guess-form"),
+  validate: $("btn-validate"),
   guess: $("guess"),
   suggest: $("suggest"),
   feedback: $("feedback"),
@@ -1298,6 +1299,8 @@ function renderRound() {
   ui.feedback.classList.remove("is-hit", "is-miss");
   ui.kicker.textContent = `Manche ${index + 1} / ${rounds.length}`;
   ui.scoreLine.textContent = `Score ${pointsSoFar()}`;
+  const typed = settings.difficulty !== "easy";
+  ui.ask.classList.toggle("is-typed", typed);
   ui.askLabel.textContent = ASK[settings.territory];
   ui.askHint.hidden = settings.difficulty !== "hyper";
   ui.ask.hidden = false;
@@ -1305,7 +1308,7 @@ function renderRound() {
   ui.shapePath.classList.remove("is-wrong");
   draw(round);
 
-  if (settings.difficulty === "easy") {
+  if (!typed) {
     ui.form.hidden = true;
     ui.choices.hidden = false;
     ui.choices.innerHTML = "";
@@ -1324,8 +1327,9 @@ function renderRound() {
     ui.form.hidden = false;
     ui.guess.value = "";
     ui.guess.disabled = false;
+    ui.guess.readOnly = false;
     showSuggestions([]);
-    ui.guess.focus();
+    ui.guess.focus({ preventScroll: true });
   }
   renderHistory();
   startRoundTimer();
@@ -1343,6 +1347,8 @@ function submit(entityGuess, typed, timedOut = false, skipped = false) {
   round.skipped = skipped;
   ui.scoreLine.textContent = `Score ${pointsSoFar()}`;
   ui.ask.hidden = true;
+  showSuggestions([]);
+  if (document.activeElement === ui.guess) ui.guess.blur();
   ui.feedback.hidden = false;
   ui.feedback.classList.toggle("is-hit", correct);
   ui.feedback.classList.toggle("is-miss", !correct);
@@ -1359,18 +1365,16 @@ function submit(entityGuess, typed, timedOut = false, skipped = false) {
   }
   ui.next.textContent = index === rounds.length - 1 ? "Voir le score" : "Manche suivante";
   playVerdict(correct);
-  ui.guess.blur();
-  whenKeyboardSettled(() => {
-    if (settings.difficulty === "hyper" && round.rotation) settleNorth(round);
-    else revealContext(round);
-    ui.next.focus({ preventScroll: true });
-  });
+  if (settings.difficulty === "hyper" && round.rotation) settleNorth(round);
+  else revealContext(round);
+  ui.next.focus({ preventScroll: true });
   renderHistory();
 }
 
 function finish() {
   stopRoundTimer();
   clearVerdict();
+  ui.guess.blur();
   const total = pointsSoFar();
   ui.dock.hidden = true;
   ui.finalScore.textContent = `${total} / ${rounds.length}`;
@@ -1437,6 +1441,32 @@ function bindSettings() {
   });
   ui.rules.textContent = RULES[settings.difficulty];
   ui.start.addEventListener("click", startGame);
+  const retainTypingFocus = (button) => {
+    let touched = false;
+    button.addEventListener("mousedown", (event) => {
+      if (settings.difficulty === "easy") return;
+      event.preventDefault();
+    });
+    button.addEventListener("touchstart", (event) => {
+      if (settings.difficulty === "easy") return;
+      event.preventDefault();
+    }, { passive: false });
+    button.addEventListener("touchend", (event) => {
+      if (settings.difficulty === "easy") return;
+      event.preventDefault();
+      touched = true;
+      button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      window.setTimeout(() => { touched = false; }, 500);
+    });
+    button.addEventListener("click", (event) => {
+      if (!touched || !event.isTrusted) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    }, true);
+  };
+  retainTypingFocus(ui.skip);
+  retainTypingFocus(ui.validate);
+  retainTypingFocus(ui.next);
   ui.skip.addEventListener("click", () => submit(null, "", false, true));
   ui.next.addEventListener("click", () => {
     if (index >= rounds.length - 1) finish();
