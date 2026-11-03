@@ -2,10 +2,10 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
   <title>Silhouettes</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
   <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
@@ -67,6 +67,7 @@
   </aside>
 
   <canvas id="verdict" aria-hidden="true"></canvas>
+  <p id="verdict-mark" hidden></p>
 
   <div id="stage" hidden>
     <svg id="map" preserveAspectRatio="none" aria-hidden="true">
@@ -116,6 +117,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=25"></script>
+  <script src="app.js?v=27"></script>
 </body>
 </html>

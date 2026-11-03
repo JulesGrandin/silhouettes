@@ -87,6 +87,7 @@ const ui = {
   frontierLine: $("frontier-line"),
   frontierDisputed: $("frontier-disputed"),
   verdict: $("verdict"),
+  verdictMark: $("verdict-mark"),
   dock: $("dock"),
   ask: $("ask"),
   askLabel: $("ask-label"),
@@ -575,6 +576,8 @@ function resolveGuess(query) {
 let spinFrame = 0;
 let verdictFrame = 0;
 let verdictTimer = 0;
+let fitFrame = 0;
+let fullHeight = window.innerHeight;
 let timerFrame = 0;
 let roundEndsAt = 0;
 
@@ -637,6 +640,13 @@ function boundsOf(rings) {
     });
   });
   return { minLon, minLat, maxLon, maxLat };
+}
+
+let cachedSafeBottom = null;
+
+function safeBottomInset() {
+  if (cachedSafeBottom === null) cachedSafeBottom = safeInset("bottom");
+  return cachedSafeBottom;
 }
 
 function safeInset(side) {
@@ -1044,11 +1054,80 @@ function draw(round, rotation = round.rotation) {
 function clearVerdict() {
   cancelAnimationFrame(verdictFrame);
   window.clearTimeout(verdictTimer);
+  if (ui.verdictMark) {
+    ui.verdictMark.hidden = true;
+    ui.verdictMark.textContent = "";
+  }
   const canvas = ui.verdict;
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function fitPlayfield() {
+  const vv = window.visualViewport;
+  const top = vv ? vv.offsetTop : 0;
+  const height = vv ? vv.height : window.innerHeight;
+  const width = vv ? vv.width : window.innerWidth;
+  const root = document.documentElement;
+  const focused = document.activeElement === ui.guess;
+  const shrunk = fullHeight - height > 120;
+  const keyboard = shrunk && (focused || root.classList.contains("is-keyboard"));
+  if (!keyboard) fullHeight = Math.max(window.innerHeight, height);
+  root.classList.toggle("is-keyboard", keyboard);
+  root.style.setProperty("--vv-top", `${top}px`);
+  root.style.setProperty("--vv-height", `${height}px`);
+  const dockH = ui.dock && !ui.dock.hidden ? ui.dock.offsetHeight : 0;
+  root.style.setProperty("--dock-h", `${dockH}px`);
+  const chromeBottom = ui.chrome && !ui.chrome.hidden ? ui.chrome.getBoundingClientRect().bottom : top;
+  const gap = window.matchMedia("(max-width: 720px)").matches ? 18 + safeBottomInset() : 30;
+  const room = Math.max(88, Math.min(width - 32, top + height - dockH - gap - Math.max(top, chromeBottom) - 8));
+  root.style.setProperty("--shape-room", `${Math.round(room)}px`);
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+}
+
+function scheduleFit() {
+  cancelAnimationFrame(fitFrame);
+  fitFrame = requestAnimationFrame(fitPlayfield);
+}
+
+function whenKeyboardSettled(done) {
+  const vv = window.visualViewport;
+  const visible = () => (vv ? vv.height : window.innerHeight);
+  if (fullHeight - visible() < 120) {
+    fitPlayfield();
+    done();
+    return;
+  }
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    if (vv) vv.removeEventListener("resize", onResize);
+    fitPlayfield();
+    done();
+  };
+  const onResize = () => {
+    if (fullHeight - visible() < 80) finish();
+  };
+  if (vv) vv.addEventListener("resize", onResize);
+  window.setTimeout(finish, 420);
+}
+
+function bindViewport() {
+  const vv = window.visualViewport;
+  if (vv) {
+    vv.addEventListener("resize", scheduleFit);
+    vv.addEventListener("scroll", scheduleFit);
+  }
+  window.addEventListener("orientationchange", scheduleFit);
+  if (ui.dock && "ResizeObserver" in window) new ResizeObserver(scheduleFit).observe(ui.dock);
+  ui.guess.addEventListener("focus", () => {
+    window.scrollTo(0, 0);
+    scheduleFit();
+  });
+  scheduleFit();
 }
 
 function playVerdict(correct) {
@@ -1061,10 +1140,15 @@ function playVerdict(correct) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
+  canvas.style.left = "0px";
+  canvas.style.top = "0px";
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const originX = width / 2;
-  const originY = Math.min(height * 0.36, height - 260);
+  const shapeRect = ui.shape.getBoundingClientRect();
+  const originX = shapeRect.width > 1 ? shapeRect.left + shapeRect.width / 2 : width / 2;
+  const originY = shapeRect.height > 1 ? shapeRect.top + shapeRect.height / 2 : height * 0.36;
   const colors = correct
     ? ["#c23b33", "#8d241e", "#1c1915", "#e4c56a"]
     : ["#c23b33", "#8d241e"];
@@ -1115,24 +1199,15 @@ function playVerdict(correct) {
     ctx.fill();
     ctx.restore();
   };
-  const markSize = 220;
-  const markCanvas = document.createElement("canvas");
-  markCanvas.width = Math.round(markSize * dpr);
-  markCanvas.height = Math.round(markSize * dpr);
-  const markCtx = markCanvas.getContext("2d");
-  markCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  markCtx.font = "168px Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif";
-  markCtx.textAlign = "center";
-  markCtx.textBaseline = "middle";
-  markCtx.fillText(correct ? "✅" : "❌", markSize / 2, markSize / 2 + 8);
   const paintMark = (scale, rotation, alpha) => {
-    ctx.save();
-    ctx.translate(originX, originY);
-    ctx.rotate(rotation);
-    ctx.scale(scale, scale);
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(markCanvas, -markSize / 2, -markSize / 2, markSize, markSize);
-    ctx.restore();
+    const mark = ui.verdictMark;
+    if (!mark) return;
+    mark.hidden = false;
+    mark.textContent = correct ? "✅" : "❌";
+    mark.style.left = `${originX}px`;
+    mark.style.top = `${originY}px`;
+    mark.style.opacity = String(alpha);
+    mark.style.transform = `translate(-50%, -50%) rotate(${rotation}rad) scale(${scale})`;
   };
   const drawAt = (t) => {
     ctx.clearRect(0, 0, width, height);
@@ -1284,9 +1359,12 @@ function submit(entityGuess, typed, timedOut = false, skipped = false) {
   }
   ui.next.textContent = index === rounds.length - 1 ? "Voir le score" : "Manche suivante";
   playVerdict(correct);
-  if (settings.difficulty === "hyper" && round.rotation) settleNorth(round);
-  else revealContext(round);
-  ui.next.focus();
+  ui.guess.blur();
+  whenKeyboardSettled(() => {
+    if (settings.difficulty === "hyper" && round.rotation) settleNorth(round);
+    else revealContext(round);
+    ui.next.focus({ preventScroll: true });
+  });
   renderHistory();
 }
 
@@ -1765,6 +1843,7 @@ function stopGlobe() {
 
 async function boot() {
   bindSettings();
+  bindViewport();
   try {
     const world = await loadJson(DATA.world, 0, 0.28);
     const france = await loadJson(DATA.france, 0.28, 0.42);
@@ -1805,6 +1884,7 @@ async function boot() {
 }
 
 window.addEventListener("resize", () => {
+  scheduleFit();
   const round = rounds[index];
   if (round && round.showContext) drawContext(round);
   if (!ui.intro.hidden && !globeRunning && globePolygons.length) drawGlobe(0);

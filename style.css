@@ -8,18 +8,27 @@
   --coast: #8a837c;
   --land: #ffffff;
   --page: #ffffff;
+  --vv-top: 0px;
+  --vv-height: 100dvh;
+  --dock-h: 200px;
+  --dock-gap: 22px;
+  --shape-room: 58vh;
   color-scheme: light;
 }
 
 * { box-sizing: border-box; }
 
 html, body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
   height: 100%;
   margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
-  overflow: hidden;
   font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   color: var(--ink);
   background: #f3f1ee url("texture-fond.png") center / cover no-repeat;
@@ -51,7 +60,7 @@ input:focus-visible {
   position: fixed;
   left: 0;
   right: 0;
-  top: 0;
+  top: var(--vv-top);
   z-index: 30;
   height: 13px;
   pointer-events: none;
@@ -304,7 +313,7 @@ input:focus-visible {
 
 #chrome {
   position: fixed;
-  top: 18px;
+  top: calc(18px + var(--vv-top));
   left: 18px;
   z-index: 10;
   width: fit-content;
@@ -390,15 +399,18 @@ input:focus-visible {
 
 #stage {
   position: fixed;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: var(--vv-top);
+  height: var(--vv-height);
   display: grid;
   place-items: center;
-  padding: 72px 24px 210px;
+  padding: 72px 24px calc(var(--dock-h) + var(--dock-gap) + 8px);
 }
 
 #shape {
-  width: min(58vh, 58vw, 560px);
-  height: auto;
+  width: min(var(--shape-room), 58vw, 560px);
+  height: min(var(--shape-room), 58vw, 560px);
   overflow: visible;
 }
 
@@ -488,11 +500,18 @@ input:focus-visible {
 
 #verdict {
   position: fixed;
-  inset: 0;
   z-index: 6;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
+}
+
+#verdict-mark {
+  position: fixed;
+  z-index: 7;
+  margin: 0;
+  font-size: 148px;
+  line-height: 1;
+  pointer-events: none;
+  transform-origin: center center;
 }
 
 #feedback.is-hit #feedback-kicker { color: var(--ink); }
@@ -502,7 +521,7 @@ input:focus-visible {
 #dock {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  top: calc(var(--vv-top) + var(--vv-height) - var(--dock-h) - var(--dock-gap));
   z-index: 12;
   width: min(520px, calc(100% - 32px));
   transform: translateX(-50%);
@@ -686,8 +705,13 @@ input:focus-visible {
   #timer-block { height: 11px; }
   .timer-value { font-size: 9px; }
 
+  :root {
+    --dock-gap: calc(10px + env(safe-area-inset-bottom));
+    --shape-room: 46vh;
+  }
+
   #chrome {
-    top: calc(16px + env(safe-area-inset-top));
+    top: calc(16px + env(safe-area-inset-top) + var(--vv-top));
     left: 8px;
     right: 8px;
     width: auto;
@@ -706,15 +730,17 @@ input:focus-visible {
     padding:
       calc(78px + env(safe-area-inset-top))
       16px
-      calc(230px + env(safe-area-inset-bottom));
+      calc(var(--dock-h) + var(--dock-gap) + 8px);
   }
 
-  #shape { width: min(46vh, 78vw, 420px); }
-
-  #dock {
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    width: min(520px, calc(100% - 16px));
+  #shape {
+    width: min(var(--shape-room), 78vw, 420px);
+    height: min(var(--shape-room), 78vw, 420px);
   }
+
+  #dock { width: min(520px, calc(100% - 16px)); }
+
+  html.is-keyboard #suggest { max-height: min(180px, 30dvh); }
 
   .choice-grid { grid-template-columns: 1fr; }
   .mode-switch-3 { grid-template-columns: 1fr; }
