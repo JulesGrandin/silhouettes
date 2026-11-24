@@ -1,0 +1,9 @@
+name = "silhouettes"
+main = "src/index.js"
+compatibility_date = "2026-11-12"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "silhouettes-scores"
+database_id = "76ef0c93-0b9f-46fa-8862-bb212bc2d112"

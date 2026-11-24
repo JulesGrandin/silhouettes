@@ -384,11 +384,15 @@ input:focus-visible {
 }
 
 .score-history .score-num {
+  flex: none;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .score-history .is-miss { color: var(--red-deep); }
+
+.time-unit-short { display: none; }
 
 .score-history-total {
   margin-top: 4px;
@@ -577,6 +581,15 @@ input:focus-visible {
   color: white;
 }
 
+.miss-note {
+  margin: 10px 0 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--red-deep);
+}
+
 .ask-actions {
   display: grid;
   gap: 8px;
@@ -696,6 +709,14 @@ input:focus-visible {
   color: var(--red-deep);
 }
 
+.finish-pace {
+  margin: 8px 0 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
 .finish-recap {
   margin: 14px 0 0;
   padding: 0;
@@ -738,7 +759,83 @@ input:focus-visible {
   color: var(--muted);
 }
 
+.board { margin-top: 16px; }
+
+.board-mode {
+  margin: 2px 0 0;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.board-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.board-form input {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  padding: 8px 10px;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.finish-card .board-form .btn-primary {
+  width: auto;
+  margin-top: 0;
+}
+
+.board-note {
+  margin: 8px 0 0;
+  min-height: 1.3em;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.board-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.board-list li {
+  display: grid;
+  grid-template-columns: 2.4em 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 13px;
+}
+
+.board-list .is-you { background: rgba(194, 59, 51, 0.1); }
+
+.board-rank,
+.board-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.board-name { min-width: 0; }
+
 @media (max-width: 720px) {
+  .time-unit-long { display: none; }
+  .time-unit-short { display: inline; }
+  .score-history-total .time-unit-long { display: inline; }
+  .score-history-total .time-unit-short { display: none; }
+
   .score-history-wrap { display: none !important; }
 
   #timer-block { height: 11px; }

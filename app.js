@@ -45,12 +45,35 @@ const ALIAS = {
 };
 
 const RULES = {
-  easy: "Quatre noms proposés. La forme est orientée au nord. 15 secondes par manche. 1 point si c’est le bon, 0 sinon.",
-  hard: "Vous tapez le nom, des suggestions s’affichent. La forme est orientée au nord. 15 secondes par manche. 1 point ou 0.",
-  hyper: "Vous tapez le nom. La forme peut être tournée dans n’importe quel sens. 15 secondes par manche. 1 point ou 0.",
+  easy: "Choisissez parmi 4 réponses possibles.",
+  hard: "Tapez vous-même la réponse.",
+  hyper: "La silhouette du pays n’est pas orientée au nord.",
+};
+
+const LEAD = {
+  world: "Saurez-vous reconnaître les pays ?",
+  france: "Saurez-vous reconnaître les départements ?",
+  us: "Saurez-vous reconnaître les États ?",
 };
 
 const ROUND_TIME_MS = 15000;
+const CENTIS_PER_SECOND = 100;
+const CENTIS_PER_MINUTE = 6000;
+const ROUND_CENTIS = ROUND_TIME_MS / 10;
+const BOARD_ORIGIN = "https://silhouettes.julesgrandin.workers.dev";
+const BOARD_NAME_KEY = "silhouettes-pseudo";
+
+const TERRITORY_LABEL = {
+  world: "Pays du monde",
+  france: "Départements",
+  us: "États-Unis",
+};
+
+const DIFF_LABEL = {
+  easy: "Facile",
+  hard: "Difficile",
+  hyper: "Hyper difficile",
+};
 
 const ASK = {
   world: "Quel pays est-ce ?",
@@ -70,6 +93,7 @@ const ui = {
   loadFill: $("load-bar-fill"),
   intro: $("intro-modal"),
   globe: $("globe"),
+  lead: $("intro-lead"),
   rules: $("rules-note"),
   start: $("btn-start"),
   chrome: $("chrome"),
@@ -101,11 +125,19 @@ const ui = {
   feedbackKicker: $("feedback-kicker"),
   feedbackName: $("feedback-name"),
   feedbackDetail: $("feedback-detail"),
+  missNote: $("miss-note"),
   next: $("btn-next"),
   skip: $("btn-skip"),
   finish: $("finish-modal"),
   finalScore: $("final-score"),
+  finishPace: $("finish-pace"),
   recap: $("finish-recap"),
+  boardMode: $("board-mode"),
+  boardForm: $("board-form"),
+  boardName: $("board-name"),
+  boardSave: $("board-save"),
+  boardNote: $("board-note"),
+  boardList: $("board-list"),
   replay: $("btn-replay"),
   timerBlock: $("timer-block"),
   timerFill: $("timer-fill"),
@@ -113,7 +145,7 @@ const ui = {
   timerBar: document.querySelector("#timer-block .timer-bar"),
 };
 
-const settings = { territory: "world", length: 5, difficulty: "easy" };
+const settings = { territory: "world", length: 5, difficulty: "hard" };
 let catalogs = null;
 let rounds = [];
 let index = 0;
@@ -495,8 +527,42 @@ function setPressed(selector, attr, value) {
   });
 }
 
-function pointsSoFar() {
-  return rounds.reduce((sum, round) => sum + (round.points || 0), 0);
+function formatRoundTime(centis) {
+  const safe = Math.max(0, Math.round(centis) || 0);
+  const seconds = Math.floor(safe / CENTIS_PER_SECOND);
+  const fraction = String(safe % CENTIS_PER_SECOND).padStart(2, "0");
+  return `${seconds}.${fraction}`;
+}
+
+function formatTotalTime(centis) {
+  const safe = Math.max(0, Math.round(centis) || 0);
+  const minutes = Math.floor(safe / CENTIS_PER_MINUTE);
+  const rest = safe % CENTIS_PER_MINUTE;
+  const seconds = Math.floor(rest / CENTIS_PER_SECOND);
+  const fraction = String(rest % CENTIS_PER_SECOND).padStart(2, "0");
+  const secondsHtml = `${seconds}.${fraction}<span class="time-unit"><span class="time-unit-long"> secondes</span><span class="time-unit-short"> s</span></span>`;
+  if (minutes < 1) return secondsHtml;
+  const minuteWord = minutes < 2 ? "minute" : "minutes";
+  return `${minutes}<span class="time-unit"><span class="time-unit-long"> ${minuteWord}</span><span class="time-unit-short"> m</span></span> ${secondsHtml}`;
+}
+
+function formatShortTime(centis) {
+  const safe = Math.max(0, Math.round(centis) || 0);
+  const minutes = Math.floor(safe / CENTIS_PER_MINUTE);
+  const rest = safe % CENTIS_PER_MINUTE;
+  const seconds = Math.floor(rest / CENTIS_PER_SECOND);
+  const fraction = String(rest % CENTIS_PER_SECOND).padStart(2, "0");
+  const secondsText = `${seconds}.${fraction} s`;
+  if (minutes < 1) return secondsText;
+  return `${minutes} m ${secondsText}`;
+}
+
+function timeSoFar() {
+  return rounds.reduce((sum, round) => sum + (round.centis == null ? (round.penalty || 0) : round.centis), 0);
+}
+
+function paintScore() {
+  ui.scoreLine.innerHTML = `Score ${formatTotalTime(timeSoFar())}`;
 }
 
 function escapeHtml(value) {
@@ -510,17 +576,14 @@ function escapeHtml(value) {
 }
 
 function renderHistory() {
-  const items = rounds
-    .filter((round) => round.points !== null)
-    .map((round) => {
-      const miss = round.points === 0 ? " is-miss" : "";
-      return `<li><span>${escapeHtml(round.entity.name)}</span><span class="score-num${miss}">${round.points}</span></li>`;
-    });
-  const total = pointsSoFar();
-  const played = rounds.filter((round) => round.points !== null).length;
-  ui.historyWrap.hidden = played === 0;
-  if (played) {
-    items.push(`<li class="score-history-total"><span>Score</span><span class="score-num">${total}</span></li>`);
+  const done = rounds.filter((round) => round.centis != null);
+  ui.historyWrap.hidden = done.length === 0;
+  const items = done.map((round) => {
+    const miss = round.correct ? "" : " is-miss";
+    return `<li><span>${escapeHtml(round.entity.name)}</span><span class="score-num${miss}">${formatRoundTime(round.centis)} s</span></li>`;
+  });
+  if (done.length) {
+    items.push(`<li class="score-history-total"><span>Score</span><span class="score-num">${formatTotalTime(timeSoFar())}</span></li>`);
   }
   ui.history.innerHTML = items.join("");
 }
@@ -580,6 +643,7 @@ let verdictTimer = 0;
 let fitFrame = 0;
 let fullHeight = window.innerHeight;
 let timerFrame = 0;
+let roundStartedAt = 0;
 let roundEndsAt = 0;
 
 function stopRoundTimer() {
@@ -590,7 +654,8 @@ function stopRoundTimer() {
 
 function startRoundTimer() {
   stopRoundTimer();
-  roundEndsAt = Date.now() + ROUND_TIME_MS;
+  roundStartedAt = Date.now();
+  roundEndsAt = roundStartedAt + ROUND_TIME_MS;
   ui.timerBlock.hidden = false;
   ui.timerFill.style.width = "100%";
   ui.timerBar.setAttribute("aria-valuenow", "100");
@@ -937,7 +1002,7 @@ function drawSolo(round, rotation) {
   ui.shape.setAttribute("viewBox", "0 0 100 100");
   ui.shape.setAttribute("preserveAspectRatio", "xMidYMid meet");
   ui.shapePath.setAttribute("d", drawn ? drawn.d : "");
-  ui.shapePath.classList.toggle("is-wrong", round.points === 0);
+  ui.shapePath.classList.toggle("is-wrong", round.centis != null && !round.correct);
   ui.stage.classList.add("is-instant");
   ui.stage.classList.remove("is-solution");
   document.body.classList.remove("is-solution");
@@ -1298,12 +1363,13 @@ function renderRound() {
   clearVerdict();
   ui.feedback.classList.remove("is-hit", "is-miss");
   ui.kicker.textContent = `Manche ${index + 1} / ${rounds.length}`;
-  ui.scoreLine.textContent = `Score ${pointsSoFar()}`;
+  paintScore();
   const typed = settings.difficulty !== "easy";
   ui.ask.classList.toggle("is-typed", typed);
   ui.askLabel.textContent = ASK[settings.territory];
   ui.askHint.hidden = settings.difficulty !== "hyper";
   ui.ask.hidden = false;
+  ui.missNote.hidden = true;
   ui.feedback.hidden = true;
   ui.shapePath.classList.remove("is-wrong");
   draw(round);
@@ -1317,7 +1383,7 @@ function renderRound() {
       button.type = "button";
       button.className = "choice";
       button.textContent = choice.name;
-      button.addEventListener("click", () => submit(choice, choice.name));
+      button.addEventListener("click", () => attempt(choice, choice.name, button));
       ui.choices.append(button);
       if (choiceIndex < 9) button.dataset.key = String(choiceIndex + 1);
     });
@@ -1335,17 +1401,48 @@ function renderRound() {
   startRoundTimer();
 }
 
+function rejectGuess(button) {
+  if (locked) return;
+  if (button) {
+    button.disabled = true;
+    button.classList.add("is-wrong");
+  }
+  ui.missNote.hidden = false;
+  if (settings.difficulty === "easy") {
+    const round = rounds[index];
+    round.penalty = (round.penalty || 0) + ROUND_CENTIS;
+    ui.missNote.textContent = "Ce n’est pas la bonne réponse. +15 s.";
+    paintScore();
+  } else {
+    ui.missNote.textContent = "Ce n’est pas la bonne réponse.";
+  }
+  if (settings.difficulty !== "easy") {
+    ui.guess.value = "";
+    showSuggestions([]);
+    ui.guess.focus({ preventScroll: true });
+  }
+}
+
+function attempt(entity, label, button) {
+  if (locked) return;
+  const round = rounds[index];
+  if (entity && entity.id === round.entity.id) submit(entity, label || entity.name);
+  else rejectGuess(button);
+}
+
 function submit(entityGuess, typed, timedOut = false, skipped = false) {
   if (locked) return;
   stopRoundTimer();
   const round = rounds[index];
   locked = true;
   const correct = !timedOut && !skipped && entityGuess && entityGuess.id === round.entity.id;
-  round.points = correct ? 1 : 0;
+  const elapsed = Math.min(ROUND_CENTIS, Math.max(0, Math.round((Date.now() - roundStartedAt) / 10)));
+  round.centis = (correct ? elapsed : ROUND_CENTIS) + (round.penalty || 0);
+  round.correct = correct;
   round.typed = typed;
   round.timedOut = timedOut;
   round.skipped = skipped;
-  ui.scoreLine.textContent = `Score ${pointsSoFar()}`;
+  paintScore();
   ui.ask.hidden = true;
   showSuggestions([]);
   if (document.activeElement === ui.guess) ui.guess.blur();
@@ -1354,14 +1451,14 @@ function submit(entityGuess, typed, timedOut = false, skipped = false) {
   ui.feedback.classList.toggle("is-miss", !correct);
   ui.feedbackKicker.textContent = skipped ? "Manche passée" : (timedOut ? "Temps écoulé" : (correct ? "Bonne réponse" : "Raté"));
   ui.feedbackName.textContent = round.entity.name;
-  if (correct) {
-    ui.feedbackDetail.textContent = "1 point.";
-  } else if (skipped || timedOut) {
-    ui.feedbackDetail.textContent = "0 point.";
-  } else if (typed) {
-    ui.feedbackDetail.textContent = `0 point. Vous aviez dit : ${typed}.`;
+  const handicap = round.penalty ? `, dont ${Math.round(round.penalty / CENTIS_PER_SECOND)} s de handicap` : "";
+  const timeLine = `Temps : ${formatRoundTime(round.centis)} s${handicap}.`;
+  if (skipped) {
+    ui.feedbackDetail.textContent = `Manche passée. ${timeLine}`;
+  } else if (typed && !correct) {
+    ui.feedbackDetail.textContent = `Vous aviez dit : ${typed}. ${timeLine}`;
   } else {
-    ui.feedbackDetail.textContent = "0 point.";
+    ui.feedbackDetail.textContent = timeLine;
   }
   ui.next.textContent = index === rounds.length - 1 ? "Voir le score" : "Manche suivante";
   playVerdict(correct);
@@ -1371,29 +1468,144 @@ function submit(entityGuess, typed, timedOut = false, skipped = false) {
   renderHistory();
 }
 
+function modeLabel() {
+  return `${TERRITORY_LABEL[settings.territory]} · ${DIFF_LABEL[settings.difficulty]} · ${settings.length} manches`;
+}
+
+function ordinal(rank) {
+  return rank === 1 ? "1er" : `${rank}e`;
+}
+
+function boardOrigin() {
+  if (location.hostname === "127.0.0.1" || location.hostname === "localhost") return "http://127.0.0.1:8787";
+  return BOARD_ORIGIN;
+}
+
+function boardQuery(name) {
+  const params = new URLSearchParams({
+    territory: settings.territory,
+    length: String(settings.length),
+    pace: String(ROUND_TIME_MS),
+    difficulty: settings.difficulty,
+  });
+  if (name) params.set("name", name);
+  return `${boardOrigin()}/scores?${params}`;
+}
+
+function paintBoard(data) {
+  ui.boardList.replaceChildren();
+  (data.entries || []).forEach((entry) => {
+    const li = document.createElement("li");
+    if (entry.yours) li.className = "is-you";
+    const rank = document.createElement("span");
+    rank.className = "board-rank";
+    rank.textContent = ordinal(entry.rank);
+    const name = document.createElement("span");
+    name.className = "board-name";
+    name.textContent = entry.name;
+    const score = document.createElement("span");
+    score.className = "board-score";
+    score.textContent = formatShortTime(entry.score);
+    li.append(rank, name, score);
+    ui.boardList.append(li);
+  });
+}
+
+function boardMessage(data, status) {
+  if (!data.total) return "Personne n’a encore enregistré de score sur ce mode.";
+  if (!data.rank) return `${data.total} score${data.total > 1 ? "s" : ""} sur ce mode.`;
+  const place = `Tu es ${ordinal(data.rank)} sur ${data.total}.`;
+  if (status === "created") return `Score enregistré. ${place}`;
+  if (status === "improved") return `Nouveau record. ${place}`;
+  if (status === "kept") return `Ton meilleur temps reste ${formatShortTime(data.best)}. ${place}`;
+  return place;
+}
+
+async function loadBoard() {
+  ui.boardMode.textContent = modeLabel();
+  const name = ui.boardName.value.trim();
+  try {
+    const response = await fetch(boardQuery(name), { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error(String(response.status));
+    const data = await response.json();
+    paintBoard(data);
+    ui.boardNote.textContent = boardMessage(data);
+  } catch {
+    ui.boardList.replaceChildren();
+    ui.boardNote.textContent = "Le classement ne répond pas pour le moment.";
+  }
+}
+
+async function saveBoard(event) {
+  event.preventDefault();
+  const name = ui.boardName.value.trim();
+  const score = timeSoFar();
+  if (!name) {
+    ui.boardNote.textContent = "Indique un pseudo.";
+    return;
+  }
+  ui.boardSave.disabled = true;
+  try {
+    const response = await fetch(`${boardOrigin()}/scores`, {
+      signal: AbortSignal.timeout(8000),
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name,
+        score,
+        territory: settings.territory,
+        length: settings.length,
+        pace: ROUND_TIME_MS,
+        difficulty: settings.difficulty,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (response.status === 400 && data.error === "pseudo") {
+      ui.boardNote.textContent = "Deux caractères minimum, sans symbole bizarre.";
+      return;
+    }
+    if (!response.ok) throw new Error(String(response.status));
+    try { localStorage.setItem(BOARD_NAME_KEY, name); } catch { /* mode privé */ }
+    paintBoard(data);
+    ui.boardNote.textContent = boardMessage(data, data.status);
+  } catch {
+    ui.boardNote.textContent = "Le classement ne répond pas pour le moment.";
+  } finally {
+    ui.boardSave.disabled = false;
+  }
+}
+
 function finish() {
   stopRoundTimer();
   clearVerdict();
   ui.guess.blur();
-  const total = pointsSoFar();
+  const total = timeSoFar();
   ui.dock.hidden = true;
-  ui.finalScore.textContent = `${total} / ${rounds.length}`;
+  ui.finalScore.textContent = formatShortTime(total);
+  ui.finishPace.textContent = modeLabel();
   ui.recap.innerHTML = rounds.map((round) => {
-    const miss = round.points === 0;
+    const miss = !round.correct;
+    const handicap = round.penalty
+      ? `<p class="finish-recap-detail">Handicap : ${Math.round(round.penalty / CENTIS_PER_SECOND)} s.</p>`
+      : "";
     const detail = round.skipped
-      ? `<p class="finish-recap-detail">Manche passée.</p>`
+      ? `<p class="finish-recap-detail">Manche passée.</p>${handicap}`
       : (round.timedOut
-      ? `<p class="finish-recap-detail">Temps écoulé.</p>`
+      ? `<p class="finish-recap-detail">Temps écoulé.</p>${handicap}`
       : (miss && round.typed
-        ? `<p class="finish-recap-detail">Vous aviez dit : ${escapeHtml(round.typed)}</p>`
-        : ""));
+        ? `<p class="finish-recap-detail">Vous aviez dit : ${escapeHtml(round.typed)}</p>${handicap}`
+        : handicap));
     return `<li>
       <p class="finish-recap-name">${escapeHtml(round.entity.name)}</p>
-      <p class="finish-recap-score${miss ? " is-miss" : ""}">${round.points}</p>
+      <p class="finish-recap-score${miss ? " is-miss" : ""}">${formatShortTime(round.centis == null ? ROUND_CENTIS : round.centis)}</p>
       ${detail}
     </li>`;
   }).join("");
   ui.finish.hidden = false;
+  if (!ui.boardName.value) {
+    try { ui.boardName.value = localStorage.getItem(BOARD_NAME_KEY) || ""; } catch { /* mode privé */ }
+  }
+  loadBoard();
 }
 
 function startGame() {
@@ -1403,7 +1615,9 @@ function startGame() {
     entity: item,
     rotation: settings.difficulty === "hyper" ? tilt() : 0,
     choices: settings.difficulty === "easy" ? shuffle([item, ...distractors(item, pool)]) : null,
-    points: null,
+    centis: null,
+    penalty: 0,
+    correct: false,
     typed: "",
     timedOut: false,
     skipped: false,
@@ -1424,6 +1638,7 @@ function bindSettings() {
     button.addEventListener("click", () => {
       settings.territory = button.dataset.territory;
       setPressed("[data-territory]", "territory", settings.territory);
+      ui.lead.textContent = LEAD[settings.territory];
     });
   });
   document.querySelectorAll("[data-length]").forEach((button) => {
@@ -1440,6 +1655,8 @@ function bindSettings() {
     });
   });
   ui.rules.textContent = RULES[settings.difficulty];
+  ui.lead.textContent = LEAD[settings.territory];
+  ui.boardForm.addEventListener("submit", saveBoard);
   ui.start.addEventListener("click", startGame);
   const retainTypingFocus = (button) => {
     let touched = false;
@@ -1491,12 +1708,14 @@ function bindSettings() {
     event.preventDefault();
     if (locked) return;
     const typed = ui.guess.value.trim();
+    if (!typed) return;
     const resolved = resolveGuess(typed);
-    if (resolved) submit(resolved, resolved.name);
-    else if (!ui.suggest.hidden && suggestItems[suggestIndex]) submit(suggestItems[suggestIndex], suggestItems[suggestIndex].name);
-    else if (typed) submit(null, typed);
+    if (resolved) attempt(resolved, resolved.name);
+    else if (!ui.suggest.hidden && suggestItems[suggestIndex]) attempt(suggestItems[suggestIndex], suggestItems[suggestIndex].name);
+    else attempt(null, typed);
   });
   ui.guess.addEventListener("input", () => {
+    ui.missNote.hidden = true;
     showSuggestions(suggestionsFor(ui.guess.value));
   });
   ui.guess.addEventListener("keydown", (event) => {
@@ -1515,14 +1734,34 @@ function bindSettings() {
     if (!li) return;
     event.preventDefault();
     const item = suggestItems[Number(li.dataset.i)];
-    if (item) submit(item, item.name);
+    if (item) attempt(item, item.name);
   });
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.repeat && !event.isComposing) {
+      const field = event.target && event.target.closest && event.target.closest("input, textarea, select");
+      if (!field) {
+        if (!ui.intro.hidden) {
+          event.preventDefault();
+          startGame();
+          return;
+        }
+        if (!ui.finish.hidden) {
+          event.preventDefault();
+          ui.replay.click();
+          return;
+        }
+        if (ui.finish.hidden && !ui.dock.hidden && !ui.feedback.hidden) {
+          event.preventDefault();
+          ui.next.click();
+          return;
+        }
+      }
+    }
     if (settings.difficulty !== "easy" || locked || ui.dock.hidden) return;
     const n = Number(event.key);
     if (n >= 1 && n <= 4) {
       const button = ui.choices.children[n - 1];
-      if (button) button.click();
+      if (button && !button.disabled) button.click();
     }
   });
 }

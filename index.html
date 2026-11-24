@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
   <title>Silhouettes</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
   <div id="load-overlay" role="status" aria-live="polite" aria-busy="true" aria-label="Chargement">
@@ -21,7 +21,7 @@
     <canvas id="globe" aria-hidden="true"></canvas>
     <div class="intro-card">
       <h1 id="intro-title">Silhouettes</h1>
-      <p class="lead">La forme, rien que la forme. Pas de voisins, pas de frontières. À vous de mettre un nom dessus.</p>
+      <p class="lead" id="intro-lead">Saurez-vous reconnaître les pays ?</p>
 
       <p class="field-label">Territoire</p>
       <div class="choice-grid" role="group" aria-label="Territoire">
@@ -38,8 +38,8 @@
 
       <p class="field-label">Difficulté</p>
       <div class="mode-switch mode-switch-3" role="group" aria-label="Difficulté">
-        <button type="button" data-difficulty="easy" aria-pressed="true">Facile</button>
-        <button type="button" data-difficulty="hard" aria-pressed="false">Difficile</button>
+        <button type="button" data-difficulty="easy" aria-pressed="false">Facile</button>
+        <button type="button" data-difficulty="hard" aria-pressed="true">Difficile</button>
         <button type="button" data-difficulty="hyper" aria-pressed="false">Hyper difficile</button>
       </div>
       <p class="mode-note" id="rules-note"></p>
@@ -101,6 +101,7 @@
             <ul id="suggest" role="listbox" hidden></ul>
           </div>
         </form>
+        <p class="miss-note" id="miss-note" hidden>Ce n’est pas la bonne réponse.</p>
         <div class="ask-actions">
           <button type="button" id="btn-skip" class="btn-secondary">Passer</button>
           <button type="submit" id="btn-validate" class="btn-primary" form="guess-form">Valider</button>
@@ -112,13 +113,24 @@
   <div id="finish-modal" class="intro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="finish-title">
     <div class="intro-card finish-card">
       <h1 id="finish-title">Partie terminée</h1>
-      <p class="final-score-kicker">Votre note</p>
+      <p class="final-score-kicker">Score</p>
       <p class="final-score" id="final-score">—</p>
+      <p class="finish-pace" id="finish-pace"></p>
       <ul class="finish-recap" id="finish-recap" aria-label="Bilan des manches"></ul>
+      <section class="board" aria-label="Classement">
+        <p class="final-score-kicker">Classement</p>
+        <p class="board-mode" id="board-mode"></p>
+        <form class="board-form" id="board-form">
+          <input id="board-name" name="pseudo" maxlength="20" autocomplete="nickname" placeholder="Ton pseudo" aria-label="Ton pseudo">
+          <button type="submit" class="btn-primary" id="board-save">Enregistrer</button>
+        </form>
+        <p class="board-note" id="board-note"></p>
+        <ol class="board-list" id="board-list"></ol>
+      </section>
       <button type="button" id="btn-replay" class="btn-primary">Rejouer</button>
     </div>
   </div>
 
-  <script src="app.js?v=30"></script>
+  <script src="app.js?v=36"></script>
 </body>
 </html>
